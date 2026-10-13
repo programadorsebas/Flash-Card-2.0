@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuroSync — Sincroniza tu mente, fortalece tus recuerdos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti para celebración premium -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Firebase Auth (inicio de sesión con Google) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- Mammoth: leer archivos Word (.docx) en el navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <style>
+    /* Transiciones fluidas */
+    .transition-all-custom {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Animación de respiración para relajación */
+    @keyframes breathe {
+      0%, 100% { transform: scale(0.85); background-color: #93c5fd; }
+      50% { transform: scale(1.15); background-color: #60a5fa; }
+    }
+    .breathing-circle {
+      animation: breathe 6s infinite ease-in-out;
+    }
+    /* Estilos para el efecto flip 3D de la tarjeta */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    /* Tamaños de letra escalables */
+    .text-scale-1 { --scale-factor: 1; }
+    .text-scale-2 { --scale-factor: 1.2; }
+    .text-scale-3 { --scale-factor: 1.4; }
+
+    body {
+      font-size: calc(1rem * var(--scale-factor, 1));
+    }
+    h1 { font-size: calc(1.875rem * var(--scale-factor, 1)); }
+    h2 { font-size: calc(1.5rem * var(--scale-factor, 1)); }
+    h3 { font-size: calc(1.25rem * var(--scale-factor, 1)); }
+    p, button, input, label, textarea, select { font-size: calc(1.125rem * var(--scale-factor, 1)); }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-blue-50 to-emerald-50 text-slate-800 min-h-screen text-scale-1 transition-all-custom" id="appBody">
+
+  <!-- PANTALLA DE INICIO DE SESIÓN -->
+  <div id="loginOverlay" class="fixed inset-0 z-[60] bg-gradient-to-br from-indigo-100 via-blue-50 to-emerald-100 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border-4 border-indigo-600 shadow-2xl max-w-md w-full p-8 text-center space-y-6">
+      <span class="text-6xl block">🧠</span>
+      <div>
+        <h1 class="font-black text-indigo-900">NeuroSync</h1>
+        <p class="text-slate-600 mt-2" id="ui-loginSubtitle">Inicia sesión para guardar tus mazos y tu progreso.</p>
+      </div>
+      <button onclick="playSound('click'); signInWithGoogle()" class="w-full bg-white hover:bg-slate-50 text-slate-800 font-extrabold py-4 px-6 rounded-2xl border-2 border-slate-300 shadow-md focus:ring-4 focus:ring-indigo-300 flex items-center justify-center gap-3 transition-all-custom">
+        <svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        <span id="ui-loginGoogle">Continuar con Google</span>
+      </button>
+      <button onclick="playSound('click'); continueAsGuest()" class="text-slate-600 hover:text-slate-900 font-bold underline focus:ring-4 focus:ring-indigo-300 rounded px-2 py-1" id="ui-loginGuest">Entrar sin cuenta</button>
+      <p id="loginError" class="hidden text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 text-sm font-bold"></p>
+    </div>
+  </div>
+
+  <!-- INDICADOR DE CARGA (IA trabajando) -->
+  <div id="busyOverlay" class="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl border-4 border-purple-600 p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <div class="w-14 h-14 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto"></div>
+      <p id="busyText" class="font-bold text-slate-700">Trabajando...</p>
+    </div>
+  </div>
+
+  <!-- CONTEXTO DE AUDIO (Generador de efectos nativo por código) -->
+  <script>
+    // Generador de efectos de sonido usando la API de Audio Web
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = AudioContextClass ? new AudioContextClass() : null;
+    
+    function playSound(type) {
+      if (!audioEnabled) return;
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        // Campana brillante de éxito
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      } else if (type === 'flip') {
+        // Sonido suave de deslizamiento
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(350, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } else if (type === 'fail') {
+        // Tono cálido de "puedes hacerlo mejor"
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+        osc.frequency.setValueAtTime(196, audioCtx.currentTime + 0.15); // G3
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } else if (type === 'click') {
+        // Pequeño clic de botón
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+      }
+    }
+  </script>
+
+  <!-- CABECERA PREMIUM DE ACCESIBILIDAD -->
+  <header class="bg-white/80 backdrop-blur-md border-b-4 border-indigo-600 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex flex-col gap-3">
+      
+      <!-- Fila 1: Logo y Selector de Idioma -->
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <button onclick="playSound('click'); changeScreen('home')" class="flex items-center gap-3 focus:outline-none focus:ring-4 focus:ring-indigo-400 rounded-2xl p-1">
+          <span class="text-4xl p-2 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-2xl text-white shadow-md">🧠</span>
+          <div class="text-left">
+            <span class="block text-2xl font-black text-indigo-900 tracking-tight" id="ui-appName">NeuroSync</span>
+            <span class="text-xs text-indigo-500 font-black block -mt-1 uppercase tracking-widest" id="ui-appTagline">Sincroniza tu mente</span>
+          </div>
+        </button>
+
+        <!-- Selector de Idioma -->
+        <div class="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border-2 border-slate-300 shadow-inner">
+          <button onclick="playSound('click'); setLanguage('es')" id="langBtn-es" class="px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all-custom">
+            <span class="text-xl">🇻🇪</span> <span class="text-sm">Español</span>
+          </button>
+          <button onclick="playSound('click'); setLanguage('en')" id="langBtn-en" class="px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all-custom">
+            <span class="text-xl">🇦🇺</span> <span class="text-sm">English</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fila 2: Controles Físicos Senior-Friendly -->
+      <div class="flex items-center justify-between flex-wrap gap-3 pt-2 border-t border-slate-100">
+        <!-- Control de Tamaño de Letra -->
+        <div class="bg-slate-100 p-1 rounded-2xl flex items-center border border-slate-300 shadow-sm">
+          <span class="text-xs font-bold text-slate-600 px-3 uppercase tracking-wider" id="ui-lblLetra">Letra:</span>
+          <button onclick="playSound('click'); setTextSize(1)" id="btnSize1" class="px-4 py-1.5 bg-white shadow font-bold border border-slate-200 rounded-xl hover:bg-slate-50">A</button>
+          <button onclick="playSound('click'); setTextSize(2)" id="btnSize2" class="px-4 py-1.5 text-slate-600 font-bold rounded-xl hover:bg-slate-50">A+</button>
+          <button onclick="playSound('click'); setTextSize(3)" id="btnSize3" class="px-4 py-1.5 text-slate-600 font-black rounded-xl hover:bg-slate-50">A++</button>
+        </div>
+
+        <!-- Lector de Voz Dinámico -->
+        <button onclick="playSound('click'); toggleAudio()" id="btnAudio" class="px-4 py-2 rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-indigo-50 focus:ring-4 focus:ring-indigo-300 flex items-center gap-2 font-bold shadow-sm transition-all-custom">
+          <span id="audioIcon" class="text-xl">🔊</span>
+          <span id="audioText" class="text-sm">Voz: Activada</span>
+        </button>
+
+        <!-- Botón de Alto Contraste -->
+        <button onclick="playSound('click'); toggleContrast()" id="btnContrast" class="px-4 py-2 rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-indigo-50 focus:ring-4 focus:ring-indigo-300 flex items-center gap-2 font-bold shadow-sm transition-all-custom">
+          <span class="text-xl">🌓</span>
+          <span class="text-sm" id="ui-btnContraste">Contraste</span>
+        </button>
+
+        <!-- Usuario conectado -->
+        <div id="userChip" class="hidden">
+          <div class="flex items-center gap-2 bg-white border border-slate-300 rounded-2xl px-3 py-1.5 shadow-sm text-slate-800">
+            <img id="userAvatar" src="" alt="" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full hidden">
+            <span id="userName" class="text-sm font-bold max-w-[9rem] truncate"></span>
+            <button onclick="playSound('click'); signOutUser()" class="text-sm font-extrabold text-red-700 underline focus:ring-2 focus:ring-red-300 rounded px-1" id="ui-btnLogout">Salir</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- CONTENEDOR CENTRAL -->
+  <main class="max-w-4xl mx-auto px-4 py-6">
+
+    <!-- BIENVENIDA DIARIA Y LOGROS EN TIEMPO REAL -->
+    <section id="welcomeSection" class="bg-gradient-to-r from-indigo-700 via-blue-600 to-indigo-800 text-white p-6 rounded-3xl shadow-xl mb-6 flex flex-col md:flex-row items-center justify-between gap-6 transition-all-custom border-b-4 border-indigo-900">
+      <div class="space-y-2 text-center md:text-left">
+        <h2 class="font-black text-white" id="ui-welcomeTitle">¡Hola, qué alegría verte hoy! 👋</h2>
+        <p class="text-blue-100" id="ui-welcomeSubtitle">¡Ejercita tu memoria y colecciona hermosas medallas!</p>
+        
+        <!-- Marcador de Medallas Conseguidas (Gamificación) -->
+        <div class="flex gap-2 flex-wrap justify-center md:justify-start pt-2">
+          <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold border border-white/20">🏆 <span id="awardCount">1</span> <span id="ui-awardLabel">Trofeos</span></span>
+          <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold border border-white/20">⭐ <span id="starsCount">12</span> <span id="ui-starLabel">Estrellas</span></span>
+        </div>
+      </div>
+      
+      <!-- Racha de Días (Incentivo diario) -->
+      <div class="bg-amber-400 text-slate-900 px-6 py-4 rounded-2xl border-2 border-white text-center shrink-0 shadow-lg transform rotate-1">
+        <span class="block text-xs font-extrabold uppercase tracking-widest text-amber-950" id="ui-streakTitle">Racha Activa</span>
+        <span class="text-3xl font-black block">🔥 <span id="rachaDias">5</span> <span id="ui-streakDays">Días</span></span>
+      </div>
+    </section>
+
+    <!-- PANTALLA PRINCIPAL (Home) -->
+    <div id="screen-home" class="space-y-8">
+      
+      <!-- SECCIÓN: JUEGOS Y EJERCICIOS DE GIMNASIA CEREBRAL -->
+      <section class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-lg space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="space-y-1">
+            <span class="bg-emerald-700/50 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">¡NUEVO! • NEW!</span>
+            <h2 class="font-black text-white flex items-center gap-2">
+              <span>🧘</span> <span id="ui-gymTitle">Gimnasia Cerebral y Relajación</span>
+            </h2>
+          </div>
+          <span class="text-4xl animate-pulse">🌟</span>
+        </div>
+        <p class="text-emerald-50" id="ui-gymDesc">Tómate un minuto para relajarte con nuestra respiración guiada antes de empezar a estudiar.</p>
+        <button onclick="playSound('click'); changeScreen('relax')" class="bg-white text-emerald-900 hover:bg-emerald-50 font-black px-6 py-3.5 rounded-2xl shadow-md transition-all-custom flex items-center gap-2 focus:ring-4 focus:ring-emerald-300">
+          🧘 <span id="ui-gymBtn">Iniciar Respiración Guiada</span>
+        </button>
+      </section>
+
+      <!-- SECCIÓN: MAZOS DISPONIBLES -->
+      <section class="space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <h2 class="font-black text-slate-800 flex items-center gap-2">
+            <span>📚</span> <span id="ui-sectionDecks">Tus Mazos Educativos</span>
+          </h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="playSound('click'); openAiScreen()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-5 py-2.5 rounded-2xl shadow-md focus:ring-4 focus:ring-purple-300 flex items-center gap-2 transition-all-custom">
+              <span>✨</span> <span id="ui-btnAiDeck">Crear con IA</span>
+            </button>
+            <button onclick="playSound('click'); changeScreen('createDeck')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-2.5 rounded-2xl shadow-md focus:ring-4 focus:ring-indigo-300 flex items-center gap-2 transition-all-custom">
+              <span>➕</span> <span id="ui-btnCreateDeck">Crear Mazo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Rejilla de Mazos -->
+        <div id="decksGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Dinámico -->
+        </div>
+      </section>
+
+      <!-- SECCIÓN: BOXES LEITNER -->
+      <section class="bg-white rounded-3xl p-6 border-2 border-indigo-100 shadow-sm space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-extrabold text-slate-900 flex items-center gap-2">
+              <span>🗂️</span> <span id="ui-leitnerTitle">Tus Cajas de Aprendizaje (Método Leitner)</span>
+            </h3>
+            <p class="text-sm text-slate-500" id="ui-leitnerSubtitle">Las tarjetas que recuerdas avanzan. ¡Llévalas todas a la Caja 3!</p>
+          </div>
+          <button onclick="playSound('click'); openModal('leitnerInfo')" class="text-indigo-600 hover:text-indigo-800 font-extrabold text-sm underline flex items-center gap-1 focus:ring-2 focus:ring-indigo-500 rounded px-1">
+            <span>💡</span> <span id="ui-btnHowItWorks">¿Cómo funciona esto?</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 md:gap-6 text-center">
+          <!-- Caja 1 -->
+          <div class="bg-red-50 border-4 border-red-200 p-4 rounded-2xl flex flex-col justify-between h-full hover:scale-105 transition-all-custom">
+            <div>
+              <span class="text-3xl block">🔴</span>
+              <span class="font-black text-red-900 block text-base md:text-lg" id="ui-box1">Caja 1</span>
+              <span class="text-xs font-bold text-red-700 uppercase tracking-wider" id="ui-box1Sub">Diario</span>
+            </div>
+            <div class="mt-3">
+              <span id="caja1Count" class="text-3xl font-black text-red-800">0</span>
+              <span class="block text-xs text-slate-500 font-bold" id="ui-boxCard1">Tarjetas</span>
+            </div>
+          </div>
+
+          <!-- Caja 2 -->
+          <div class="bg-amber-50 border-4 border-amber-200 p-4 rounded-2xl flex flex-col justify-between h-full hover:scale-105 transition-all-custom">
+            <div>
+              <span class="text-3xl block">🟡</span>
+              <span class="font-black text-amber-900 block text-base md:text-lg" id="ui-box2">Caja 2</span>
+              <span class="text-xs font-bold text-amber-700 uppercase tracking-wider" id="ui-box2Sub">Cada 3 Días</span>
+            </div>
+            <div class="mt-3">
+              <span id="caja2Count" class="text-3xl font-black text-amber-800">0</span>
+              <span class="block text-xs text-slate-500 font-bold" id="ui-boxCard2">Tarjetas</span>
+            </div>
+          </div>
+
+          <!-- Caja 3 -->
+          <div class="bg-emerald-50 border-4 border-emerald-200 p-4 rounded-2xl flex flex-col justify-between h-full hover:scale-105 transition-all-custom">
+            <div>
+              <span class="text-3xl block">🟢</span>
+              <span class="font-black text-emerald-900 block text-base md:text-lg" id="ui-box3">Caja 3</span>
+              <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider" id="ui-box3Sub">Dominadas</span>
+            </div>
+            <div class="mt-3">
+              <span id="caja3Count" class="text-3xl font-black text-emerald-800">0</span>
+              <span class="block text-xs text-slate-500 font-bold" id="ui-boxCard3">Tarjetas</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- PANTALLA: RESPIRACIÓN GUIADA -->
+    <div id="screen-relax" class="hidden space-y-6 bg-white p-8 rounded-3xl border-2 border-indigo-100 shadow-xl text-center">
+      <h2 class="font-black text-indigo-900" id="ui-relaxTitle">Momento de Relajación Guiada</h2>
+      <p class="text-slate-600 max-w-md mx-auto" id="ui-relaxDesc">Acompáñanos a respirar profundamente para enfocar y calmar tu cerebro.</p>
+      
+      <!-- Círculo animado de respiración -->
+      <div class="flex items-center justify-center my-10">
+        <div class="w-48 h-48 rounded-full breathing-circle flex items-center justify-center text-white font-extrabold text-2xl shadow-inner shadow-indigo-600 transition-all-custom">
+          <span id="breathText">Inhala 💨</span>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <p class="text-sm font-bold text-indigo-600" id="ui-relaxInstruction">Inhala cuando el círculo crezca, exhala cuando se reduzca.</p>
+        <button onclick="playSound('click'); changeScreen('home')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-3 rounded-2xl shadow-md transition-all-custom">
+          🏠 <span id="ui-relaxBack">Listo, volver al inicio</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PANTALLA: SESIÓN DE ESTUDIO (Flashcards) -->
+    <div id="screen-study" class="hidden space-y-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <button onclick="playSound('click'); changeScreen('home')" class="text-slate-600 hover:text-slate-900 font-extrabold flex items-center gap-1.5 focus:ring-4 focus:ring-slate-300 rounded-2xl p-2 bg-slate-100 transition-all-custom">
+          <span>⬅️</span> <span id="ui-btnGoBackHome">Volver al inicio</span>
+        </button>
+        <div class="text-center md:text-right">
+          <span class="text-xs uppercase tracking-widest text-indigo-600 font-extrabold block" id="ui-lblStudyingMazo">Estudiando Mazo:</span>
+          <h2 id="studyDeckTitle" class="font-black text-indigo-950">Mazo de Prueba</h2>
+        </div>
+      </div>
+
+      <!-- Barra de progreso e indicador visual -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+        <div class="flex justify-between items-center text-sm font-bold text-slate-600">
+          <span id="ui-lblProgressTitle">Progreso de hoy</span>
+          <span id="cardProgressText" class="font-black text-indigo-600">Tarjeta 1 de 5</span>
+        </div>
+        <div class="w-full bg-slate-200 rounded-full h-4">
+          <div id="cardProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full transition-all duration-300" style="width: 20%"></div>
+        </div>
+      </div>
+
+      <!-- AREA CENTRAL DE LA TARJETA (Flip Container) -->
+      <div class="flex flex-col items-center justify-center py-4">
+        <div id="flashcardContainer" class="w-full max-w-xl h-80 perspective-1000 cursor-pointer" onclick="flipCard()">
+          <div id="cardInner" class="relative w-full h-full transform-style-3d transition-transform duration-500 flex items-center justify-center">
+            
+            <!-- Cara Frontal (Pregunta) -->
+            <div class="absolute w-full h-full bg-white border-4 border-indigo-600 rounded-3xl shadow-xl p-8 flex flex-col justify-between items-center backface-hidden text-center hover:border-indigo-500 transition-all-custom">
+              <span class="text-xs uppercase font-black tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200" id="ui-lblPreguntaTag">Pregunta 💡</span>
+              
+              <p id="cardFrontText" class="text-xl md:text-2xl font-black text-slate-800 my-auto px-4">
+                ¿...?
+              </p>
+
+              <div class="flex justify-between items-center w-full mt-4 border-t border-slate-100 pt-3">
+                <button onclick="speakCurrentCardText(event)" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-4 py-2.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all-custom focus:ring-4 focus:ring-indigo-300 font-bold shadow-sm" title="Escuchar">
+                  📢 <span id="ui-btnSpeakFront">Escuchar pregunta</span>
+                </button>
+                <span class="text-sm font-bold text-slate-500 animate-bounce flex items-center gap-1" id="ui-lblSeeAnswer">
+                  Ver respuesta 🔄
+                </span>
+              </div>
+            </div>
+
+            <!-- Cara Trasera (Respuesta) -->
+            <div class="absolute w-full h-full bg-indigo-50 border-4 border-indigo-700 rounded-3xl shadow-xl p-8 flex flex-col justify-between items-center backface-hidden text-center rotate-y-180">
+              <span class="text-xs uppercase font-black tracking-widest text-indigo-700 bg-indigo-100 px-3 py-1 rounded-full border border-indigo-200" id="ui-lblRespuestaTag">Respuesta ✔️</span>
+              
+              <p id="cardBackText" class="text-xl md:text-2xl font-black text-indigo-950 my-auto px-4">
+                ...
+              </p>
+
+              <div class="flex justify-between items-center w-full mt-4 border-t border-indigo-100 pt-3">
+                <button onclick="speakCurrentCardText(event, true)" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-4 py-2.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all-custom focus:ring-4 focus:ring-indigo-300 font-bold shadow-sm" title="Escuchar">
+                  📢 <span id="ui-btnSpeakBack">Escuchar respuesta</span>
+                </button>
+                <span class="text-sm font-bold text-slate-500" id="ui-lblBackTag">Cara trasera 🔄</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <p class="text-center text-slate-500 mt-4 text-sm font-bold" id="ui-lblFlipInstruction">💡 Presiona la tarjeta en cualquier parte para voltearla y ver la respuesta.</p>
+      </div>
+
+      <!-- BOTONES DE AUTO-EVALUACIÓN -->
+      <div class="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-md space-y-4">
+        <h3 class="text-center font-black text-slate-700" id="ui-lblDidYouRemember">¿Lograste recordar la respuesta?</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Botón: Necesito Repasar -->
+          <button onclick="evaluateCard(false)" class="bg-red-50 hover:bg-red-100 text-red-900 border-4 border-red-500 p-4 rounded-2xl font-black shadow-sm transition-all-custom flex flex-col items-center justify-center gap-1 focus:ring-4 focus:ring-red-300">
+            <span class="text-3xl">🔴</span>
+            <span id="ui-btnKeepReviewing">No, necesito repasarla más</span>
+            <span class="text-xs font-bold text-red-700 uppercase" id="ui-subKeepReviewing">(Se mantendrá en la Caja de repaso diario)</span>
+          </button>
+
+          <!-- Botón: ¡Lo recordé perfectamente! -->
+          <button onclick="evaluateCard(true)" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-4 border-emerald-500 p-4 rounded-2xl font-black shadow-sm transition-all-custom flex flex-col items-center justify-center gap-1 focus:ring-4 focus:ring-emerald-300">
+            <span class="text-3xl">🟢</span>
+            <span id="ui-btnRemembered">¡Sí, la recordé muy bien!</span>
+            <span class="text-xs font-bold text-emerald-700 uppercase" id="ui-subRemembered">(Subirá de nivel para repasar después)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANTALLA: CREAR / EDITAR MAZO -->
+    <div id="screen-createDeck" class="hidden bg-white p-6 rounded-3xl border-2 border-indigo-100 shadow-md space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h2 class="font-black text-slate-800 flex items-center gap-2">
+          <span>🆕</span> <span id="ui-titleCreateDeck">Crear Nuevo Mazo de Tarjetas</span>
+        </h2>
+        <button onclick="playSound('click'); changeScreen('home')" class="text-slate-500 hover:text-slate-700 font-bold px-3 py-1.5 bg-slate-100 rounded-xl" id="ui-btnCancel">
+          Cancelar
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block font-bold text-slate-700 mb-2" id="ui-lblDeckLang">Escribo en:</label>
+          <div class="inline-flex gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-300">
+            <button type="button" data-src="es" onclick="playSound('click'); setSrcLang('es')" class="src-lang-btn px-4 py-2 rounded-xl font-bold">🇻🇪 Español</button>
+            <button type="button" data-src="en" onclick="playSound('click'); setSrcLang('en')" class="src-lang-btn px-4 py-2 rounded-xl font-bold">🇦🇺 English</button>
+          </div>
+        </div>
+
+        <div>
+          <label for="newDeckTitle" class="block font-bold text-slate-700 mb-1" id="ui-lblDeckName">Nombre del mazo:</label>
+          <input type="text" id="newDeckTitle" maxlength="80" placeholder="Ej. Historia Australiana" class="w-full p-3 border-2 border-slate-300 rounded-xl focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-100 font-bold">
+          <p class="text-sm text-purple-700 font-bold mt-2" id="ui-lblAutoTranslate">🤖 La IA traducirá el nombre al otro idioma por ti.</p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1" id="ui-lblPickEmoji">Elige un dibujo para el mazo:</label>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="playSound('click'); selectEmoji('🦘')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">🦘</button>
+            <button onclick="playSound('click'); selectEmoji('🐨')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">🐨</button>
+            <button onclick="playSound('click'); selectEmoji('⛵')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">⛵</button>
+            <button onclick="playSound('click'); selectEmoji('🌳')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">🌳</button>
+            <button onclick="playSound('click'); selectEmoji('🍪')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">🍪</button>
+            <button onclick="playSound('click'); selectEmoji('🗺️')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">🗺️</button>
+            <button onclick="playSound('click'); selectEmoji('🌟')" class="emoji-opt p-3 bg-slate-100 hover:bg-slate-200 border-2 border-transparent rounded-xl text-2xl">🌟</button>
+          </div>
+          <input type="hidden" id="selectedEmoji" value="🦘">
+        </div>
+
+        <button onclick="playSound('click'); saveNewDeck()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-md focus:ring-4 focus:ring-indigo-400 text-lg transition-all-custom" id="ui-btnSaveDeck">
+          💾 Guardar Mazo
+        </button>
+      </div>
+    </div>
+
+    <!-- PANTALLA: CREAR MAZO CON IA -->
+    <div id="screen-aiDeck" class="hidden bg-white p-6 rounded-3xl border-2 border-purple-200 shadow-md space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 gap-2">
+        <h2 class="font-black text-slate-800 flex items-center gap-2">
+          <span>✨</span> <span id="ui-aiTitle">Crear Mazo con Inteligencia Artificial</span>
+        </h2>
+        <button onclick="playSound('click'); changeScreen('home')" class="text-slate-500 hover:text-slate-700 font-bold px-3 py-1.5 bg-slate-100 rounded-xl" id="ui-aiCancel">Cancelar</button>
+      </div>
+
+      <!-- Cantidad (máximo 20) -->
+      <div>
+        <label for="aiCount" class="block font-bold text-slate-700 mb-1" id="ui-aiCountLabel">¿Cuántas tarjetas quieres?</label>
+        <input type="number" id="aiCount" min="1" max="20" value="10" class="w-28 p-3 border-2 border-slate-300 rounded-xl font-bold focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-100">
+        <p class="text-sm text-slate-500 mt-1" id="ui-aiMaxNote">Máximo 20 tarjetas por mazo, en español e inglés.</p>
+      </div>
+
+      <!-- Pestañas -->
+      <div class="flex gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-300">
+        <button id="aiTab-topic" onclick="playSound('click'); setAiTab('topic')" class="flex-1 px-4 py-3 rounded-xl font-extrabold">📝 <span id="ui-aiTabTopic">Escribir un tema</span></button>
+        <button id="aiTab-file" onclick="playSound('click'); setAiTab('file')" class="flex-1 px-4 py-3 rounded-xl font-extrabold">📄 <span id="ui-aiTabFile">Subir un archivo</span></button>
+      </div>
+
+      <!-- Opción A: tema -->
+      <div id="aiPanel-topic" class="space-y-4">
+        <div>
+          <label for="aiPrompt" class="block font-bold text-slate-700 mb-1" id="ui-aiPromptLabel">¿Sobre qué quieres aprender?</label>
+          <textarea id="aiPrompt" rows="4" maxlength="500" placeholder="Ej. Los planetas del sistema solar" class="w-full p-3 border-2 border-slate-300 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-100"></textarea>
+        </div>
+        <button onclick="playSound('click'); generateDeckFromPrompt()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-md focus:ring-4 focus:ring-purple-300 text-lg transition-all-custom">
+          ✨ <span id="ui-aiBtnTopic">Crear mazo con IA</span>
+        </button>
+      </div>
+
+      <!-- Opción B: archivo -->
+      <div id="aiPanel-file" class="hidden space-y-4">
+        <div>
+          <label for="aiFile" class="block font-bold text-slate-700 mb-2" id="ui-aiFileLabel">Elige un documento (PDF, Word .docx o texto)</label>
+          <input type="file" id="aiFile" accept=".pdf,.docx,.txt,.md,application/pdf" class="block w-full text-slate-700 file:mr-4 file:py-3 file:px-5 file:rounded-xl file:border-0 file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-700">
+        </div>
+        <div>
+          <label for="aiHint" class="block font-bold text-slate-700 mb-1" id="ui-aiHintLabel">Indicaciones para la IA (opcional):</label>
+          <textarea id="aiHint" rows="2" maxlength="300" placeholder="Ej. Enfócate en los capítulos 1 y 2" class="w-full p-3 border-2 border-slate-300 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-100"></textarea>
+        </div>
+        <button onclick="playSound('click'); generateDeckFromFile()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold py-4 px-6 rounded-2xl shadow-md focus:ring-4 focus:ring-purple-300 text-lg transition-all-custom">
+          📄 <span id="ui-aiBtnFile">Crear mazo desde el archivo</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PANTALLA: GESTIONAR TARJETAS DE UN MAZO -->
+    <div id="screen-manageCards" class="hidden space-y-6">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-200 pb-4">
+        <button onclick="playSound('click'); changeScreen('home')" class="text-slate-600 hover:text-slate-900 font-extrabold flex items-center gap-1.5 focus:ring-4 focus:ring-slate-300 rounded-2xl p-2 bg-slate-100">
+          ⬅️ <span id="ui-btnGoBackDecks">Volver a Mazos</span>
+        </button>
+        <h2 id="manageDeckTitle" class="font-black text-slate-800">Gestionar Tarjetas</h2>
+      </div>
+
+      <!-- Formulario para agregar una tarjeta -->
+      <div class="bg-indigo-50 border-2 border-indigo-200 p-6 rounded-3xl shadow-sm space-y-4">
+        <h3 class="font-bold text-indigo-950 flex items-center gap-1">
+          <span>➕</span> <span id="ui-titleAddCardForm">Agregar Nueva Tarjeta</span>
+        </h3>
+        
+        <div class="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm space-y-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="font-bold text-slate-700" id="ui-lblWriteIn">Escribo en:</span>
+            <div class="inline-flex gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-300">
+              <button type="button" data-src="es" onclick="playSound('click'); setSrcLang('es')" class="src-lang-btn px-4 py-2 rounded-xl font-bold">🇻🇪 Español</button>
+              <button type="button" data-src="en" onclick="playSound('click'); setSrcLang('en')" class="src-lang-btn px-4 py-2 rounded-xl font-bold">🇦🇺 English</button>
+            </div>
+          </div>
+          <div>
+            <label for="newCardFront" class="block text-sm font-bold text-slate-500 mb-1" id="ui-lblQuestion">Pregunta:</label>
+            <textarea id="newCardFront" rows="2" placeholder="Ej. ¿Qué animal representa a Australia?" class="w-full p-2 border-2 border-slate-300 rounded-lg text-sm"></textarea>
+          </div>
+          <div>
+            <label for="newCardBack" class="block text-sm font-bold text-slate-500 mb-1" id="ui-lblAnswer">Respuesta:</label>
+            <textarea id="newCardBack" rows="2" placeholder="Ej. El canguro." class="w-full p-2 border-2 border-slate-300 rounded-lg text-sm"></textarea>
+          </div>
+          <p class="text-sm text-purple-700 font-bold" id="ui-lblAutoTranslateCard">🤖 La IA traducirá la tarjeta al otro idioma por ti.</p>
+        </div>
+
+        <button onclick="playSound('click'); addNewCard()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-md focus:ring-4 focus:ring-indigo-400 flex items-center gap-2 justify-center w-full md:w-auto transition-all-custom">
+          ✨ <span id="ui-btnAddCardBtn">Guardar Tarjeta</span>
+        </button>
+      </div>
+
+      <!-- Lista de Tarjetas Actuales -->
+      <div class="space-y-4">
+        <h3 class="font-bold text-slate-800" id="ui-lblCurrentCardsList">Tarjetas actuales en este mazo</h3>
+        <div id="deckCardsList" class="space-y-3">
+          <!-- Dinámico -->
+        </div>
+      </div>
+    </div>
+
+    <!-- PANTALLA: CONGRATS Y LOGROS -->
+    <div id="screen-congrats" class="hidden bg-white border-4 border-indigo-500 p-8 rounded-3xl shadow-2xl space-y-6 text-center">
+      <div class="text-7xl animate-bounce">🏆🌟🇦🇺</div>
+      <h2 class="font-black text-indigo-800" id="ui-congratsTitle">¡Excelente Trabajo! ¡Sesión Completada!</h2>
+      <p class="text-lg text-slate-600 max-w-lg mx-auto" id="ui-congratsSubtitle">
+        Tu mente se ha ejercitado hoy estupendamente. Cada tarjeta que repasas es un paso para mantener tu memoria fuerte.
+      </p>
+
+      <!-- Panel de Logro Recibido -->
+      <div class="bg-amber-50 border-4 border-amber-300 p-6 rounded-2xl max-w-sm mx-auto space-y-2 shadow-inner">
+        <span class="text-4xl">🎖️</span>
+        <h3 class="font-black text-amber-900" id="ui-badgeEarned">¡Ganaste un nuevo Trofeo!</h3>
+        <p class="text-xs text-amber-700 font-bold" id="ui-badgeDesc">"Explorador de Australia"</p>
+      </div>
+
+      <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 max-w-md mx-auto space-y-2">
+        <h3 class="font-bold text-indigo-950" id="ui-congratsSummaryTitle">Resumen de hoy:</h3>
+        <p class="font-semibold text-slate-700"><span id="ui-congratsReviewedText">Tarjetas revisadas</span>: <span id="congratsCount" class="font-black text-indigo-800">5</span></p>
+        <p class="text-sm text-slate-500" id="ui-congratsTip">Recuerda volver mañana para que tus tarjetas sigan avanzando por las cajas.</p>
+      </div>
+
+      <div class="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+        <button onclick="playSound('click'); changeScreen('home')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-4 rounded-2xl shadow-md focus:ring-4 focus:ring-indigo-300 text-lg transition-all-custom" id="ui-btnGoHomeCongrats">
+          🏠 Volver a la pantalla principal
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- SECCIÓN DE DIÁLOGOS / MODALES PERSONALIZADOS -->
+  <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full border-4 border-indigo-600 p-6 space-y-4 shadow-2xl transition-all-custom scale-95" id="modalContainer">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 id="modalTitle" class="font-black text-indigo-800">Información</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+      </div>
+      <div id="modalBody" class="text-slate-700 space-y-3">
+        <!-- Dinámico -->
+      </div>
+      <div class="pt-2">
+        <button onclick="playSound('click'); closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl" id="ui-modalBtnUnderstand">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ESPECIAL: EXPLICACIÓN DE CAJAS LEITNER -->
+  <div id="leitnerInfoModal" class="hidden">
+    <!-- Español -->
+    <div class="space-y-4 text-left lang-content-es">
+      <p class="text-base">El sistema de cajas te ayuda a memorizar sin cansarte, organizando tu tiempo óptimamente:</p>
+      <div class="space-y-3">
+        <div class="flex items-start gap-2">
+          <span class="text-xl">🔴</span>
+          <div>
+            <strong class="text-red-800 block">Caja 1: Repaso Diario</strong>
+            <span class="text-sm text-slate-600">Aquí entran las tarjetas que te cuesta recordar. Se repasan todos los días.</span>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-xl">🟡</span>
+          <div>
+            <strong class="text-amber-800 block">Caja 2: Cada 3 Días</strong>
+            <span class="text-sm text-slate-600">Cuando logras recordar una tarjeta en la Caja 1, esta sube a la Caja 2. ¡Lo estás haciendo excelente!</span>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-xl">🟢</span>
+          <div>
+            <strong class="text-emerald-800 block">Caja 3: Dominadas (Cada 5-7 días)</strong>
+            <span class="text-sm text-slate-600">Al recordar una tarjeta de la Caja 2, se promueve aquí para consolidar tu memoria.</span>
+          </div>
+        </div>
+        <p class="text-sm border-t border-slate-100 pt-2 text-slate-500 font-semibold italic">⚠️ Nota importante: Si fallas una tarjeta en cualquier caja, regresará a la Caja 1 para repasar diariamente hasta que la domines.</p>
+      </div>
+    </div>
+    <!-- Inglés -->
+    <div class="space-y-4 text-left lang-content-en">
+      <p class="text-base">The box system helps you memorize without fatigue, optimizing your study time:</p>
+      <div class="space-y-3">
+        <div class="flex items-start gap-2">
+          <span class="text-xl">🔴</span>
+          <div>
+            <strong class="text-red-800 block">Box 1: Daily Review</strong>
+            <span class="text-sm text-slate-600">All new or difficult cards start here. Reviewed every single day.</span>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-xl">🟡</span>
+          <div>
+            <strong class="text-amber-800 block">Box 2: Every 3 Days</strong>
+            <span class="text-sm text-slate-600">When you remember a card in Box 1, it moves up here. You're doing great!</span>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-xl">🟢</span>
+          <div>
+            <strong class="text-emerald-800 block">Box 3: Mastered (Every 5-7 Days)</strong>
+            <span class="text-sm text-slate-600">When remembered in Box 2, cards move here to solidify long-term memory.</span>
+          </div>
+        </div>
+        <p class="text-sm border-t border-slate-100 pt-2 text-slate-500 font-semibold italic">⚠️ Important: If you miss a card in any box, it goes straight back to Box 1 for daily practice.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // TEXTOS DE LOCALIZACIÓN
+    const translations = {
+      es: {
+        appName: "Memorable",
+        appTagline: "Mente Activa y Fuerte",
+        lblLetra: "Letra:",
+        btnContraste: "Contraste",
+        audioOn: "Voz: Activada",
+        audioOff: "Voz: Desactivada",
+        welcomeTitle: "¡Hola, qué alegría verte hoy! 👋",
+        welcomeSubtitle: "¡Ejercita tu memoria y colecciona hermosas medallas!",
+        awardLabel: "Trofeos",
+        starLabel: "Estrellas",
+        streakTitle: "Racha Activa",
+        streakDays: "Días",
+        sectionDecks: "Tus Mazos Educativos",
+        btnCreateDeck: "Crear Mazo",
+        leitnerTitle: "Tus Cajas de Aprendizaje (Método Leitner)",
+        leitnerSubtitle: "Las tarjetas que recuerdas avanzan. ¡Llévalas todas a la Caja 3!",
+        btnHowItWorks: "¿Cómo funciona esto?",
+        box1: "Caja 1",
+        box1Sub: "Diario",
+        boxCard1: "Tarjetas",
+        box2: "Caja 2",
+        box2Sub: "Cada 3 Días",
+        boxCard2: "Tarjetas",
+        box3: "Caja 3",
+        box3Sub: "Dominadas",
+        boxCard3: "Tarjetas",
+        btnGoBackHome: "Volver al inicio",
+        lblStudyingMazo: "Estudiando Mazo:",
+        lblProgressTitle: "Progreso de hoy",
+        lblPreguntaTag: "Pregunta 💡",
+        btnSpeakFront: "Escuchar pregunta",
+        lblSeeAnswer: "Ver respuesta 🔄",
+        lblRespuestaTag: "Respuesta ✔️",
+        btnSpeakBack: "Escuchar respuesta",
+        lblBackTag: "Cara trasera 🔄",
+        lblFlipInstruction: "💡 Presiona la tarjeta en cualquier parte para voltearla y ver la respuesta.",
+        lblDidYouRemember: "¿Lograste recordar la respuesta?",
+        btnKeepReviewing: "No, necesito repasarla más",
+        subKeepReviewing: "(Se mantendrá en la Caja de repaso diario)",
+        btnRemembered: "¡Sí, la recordé muy bien!",
+        subRemembered: "(Subirá de nivel para repasar después)",
+        titleCreateDeck: "Crear Nuevo Mazo de Tarjetas",
+        btnCancel: "Cancelar",
+        lblPickEmoji: "Elige un dibujo para el mazo:",
+        btnSaveDeck: "💾 Guardar Mazo",
+        btnGoBackDecks: "Volver a Mazos",
+        titleAddCardForm: "Agregar Nueva Tarjeta",
+        btnAddCardBtn: "Guardar Tarjeta",
+        lblCurrentCardsList: "Tarjetas actuales en este mazo",
+        congratsTitle: "¡Excelente Trabajo! ¡Sesión Completada!",
+        congratsSubtitle: "Tu mente se ha ejercitado hoy estupendamente. Cada tarjeta que repasas es un paso para mantener tu memoria fuerte.",
+        congratsSummaryTitle: "Resumen de hoy:",
+        congratsReviewedText: "Tarjetas revisadas",
+        congratsTip: "Recuerda volver mañana para que tus tarjetas sigan avanzando por las cajas.",
+        btnGoHomeCongrats: "🏠 Volver a la pantalla principal",
+        modalBtnUnderstand: "Entendido",
+        alertNoCards: "Atención: Este mazo no tiene tarjetas todavía. Por favor, agrega algunas tarjetas primero.",
+        alertFieldReq: "Por favor, completa los nombres del mazo.",
+        alertCardFieldReq: "Por favor, completa los campos de pregunta y respuesta tanto en español como en inglés.",
+        gymTitle: "Gimnasia Cerebral y Relajación",
+        gymDesc: "Tómate un minuto para relajarte con nuestra respiración guiada antes de empezar a estudiar.",
+        gymBtn: "Iniciar Respiración Guiada",
+        relaxTitle: "Relajación Guiada",
+        relaxDesc: "Acompáñanos a respirar profundamente para enfocar y calmar tu cerebro.",
+        relaxInstruction: "Inhala cuando el círculo crezca, exhala cuando se reduzca.",
+        relaxBack: "Listo, volver al inicio",
+        badgeEarned: "¡Ganaste un nuevo Trofeo!",
+        badgeDesc: "Explorador de Australia 🦘"
+      },
+      en: {
+        appName: "Memorable",
+        appTagline: "Active & Sharp Mind",
+        lblLetra: "Text Size:",
+        btnContraste: "Contrast",
+        audioOn: "Voice: Activated",
+        audioOff: "Voice: Deactivated",
+        welcomeTitle: "Hello, wonderful to see you today! 👋",
+        welcomeSubtitle: "Exercise your mind and collect beautiful badges!",
+        awardLabel: "Trophies",
+        starLabel: "Stars",
+        streakTitle: "Active Streak",
+        streakDays: "Days",
+        sectionDecks: "Your Educational Decks",
+        btnCreateDeck: "Create Deck",
+        leitnerTitle: "Your Memory Boxes (Leitner Method)",
+        leitnerSubtitle: "Successfully remembered cards move up. Let's get them all to Box 3!",
+        btnHowItWorks: "How does this work?",
+        box1: "Box 1",
+        box1Sub: "Daily",
+        boxCard1: "Cards",
+        box2: "Box 2",
+        box2Sub: "Every 3 Days",
+        boxCard2: "Cards",
+        box3: "Box 3",
+        box3Sub: "Mastered",
+        boxCard3: "Cards",
+        btnGoBackHome: "Go back home",
+        lblStudyingMazo: "Studying Deck:",
+        lblProgressTitle: "Today's Progress",
+        lblPreguntaTag: "Question 💡",
+        btnSpeakFront: "Listen to question",
+        lblSeeAnswer: "See answer 🔄",
+        lblRespuestaTag: "Answer ✔️",
+        btnSpeakBack: "Listen to answer",
+        lblBackTag: "Back side 🔄",
+        lblFlipInstruction: "💡 Tap anywhere on the card to flip it and reveal the answer.",
+        lblDidYouRemember: "Did you remember the answer?",
+        btnKeepReviewing: "No, I need to review it more",
+        subKeepReviewing: "(It will stay in Box 1 for daily practice)",
+        btnRemembered: "Yes, I remembered it well!",
+        subRemembered: "(It will level up to review later)",
+        titleCreateDeck: "Create New Flashcard Deck",
+        btnCancel: "Cancel",
+        lblPickEmoji: "Choose a symbol for your deck:",
+        btnSaveDeck: "💾 Save Deck",
+        btnGoBackDecks: "Back to Decks",
+        titleAddCardForm: "Add New Card",
+        btnAddCardBtn: "Save Card",
+        lblCurrentCardsList: "Current cards in this deck",
+        congratsTitle: "Outstanding Work! Session Completed!",
+        congratsSubtitle: "Your brain received a fantastic workout today. Every card you practice is a step to keep your memory sharp.",
+        congratsSummaryTitle: "Today's summary:",
+        congratsReviewedText: "Cards reviewed",
+        congratsTip: "Remember to return tomorrow to help your cards advance through the memory boxes.",
+        btnGoHomeCongrats: "🏠 Return to Home Screen",
+        modalBtnUnderstand: "Got it",
+        alertNoCards: "Attention: This deck does not have cards yet. Please add some cards first.",
+        alertFieldReq: "Please fill in the deck name.",
+        alertCardFieldReq: "Please fill in the question and answer fields in both English and Spanish.",
+        gymTitle: "Brain Gym & Breathing Exercises",
+        gymDesc: "Take a quiet minute to breathe deeply and focus before you begin studying.",
+        gymBtn: "Start Guided Breathing",
+        relaxTitle: "Guided Relaxation",
+        relaxDesc: "Let's breathe deeply together to calm and focus your mind.",
+        relaxInstruction: "Breathe in as the circle expands, breathe out as it shrinks.",
+        relaxBack: "Done, let's go back home",
+        badgeEarned: "You won a new Trophy!",
+        badgeDesc: "Australia Explorer 🦘"
+      }
+    };
+
+    // BASE DE DATOS DE CONTENIDO PREMIUM SOBRE AUSTRALIA
+    const initialDecks = [
+      {
+        id: "deck-wildlife",
+        title_es: "Fauna Silvestre de Australia",
+        title_en: "Australian Wildlife",
+        desc_es: "Aprende sobre los animales más entrañables y famosos de Australia.",
+        desc_en: "Learn about Australia's most lovable and iconic unique animals.",
+        emoji: "🦘",
+        cards: [
+          { 
+            id: "w1", 
+            front_es: "¿Cómo cargan los canguros hembra a sus pequeños bebés?", 
+            back_es: "Los llevan dentro de una bolsa especial en su vientre llamada marsupio.",
+            front_en: "How do female kangaroos carry their tiny babies?",
+            back_en: "They carry them inside a special pouch on their belly called a marsupium.",
+            box: 1 
+          },
+          { 
+            id: "w2", 
+            front_es: "¿Cuál es el alimento favorito y exclusivo de los lindos koalas?", 
+            back_es: "Las hojas de eucalipto. Les encanta comerlas y pasar el día durmiendo.",
+            front_en: "What is the favorite and exclusive food of lovely koalas?",
+            back_en: "Eucalyptus leaves. They love eating them and spending the day sleeping.",
+            box: 1 
+          },
+          { 
+            id: "w3", 
+            front_es: "¿Qué mamífero australiano tan peculiar tiene pico de pato y pone huevos?", 
+            back_es: "El ornitorrinco. Es uno de los animales más singulares del planeta.",
+            front_en: "Which unusual Australian mammal has a duck-bill and lays eggs?",
+            back_en: "The platypus. It is one of the most unique creatures on Earth.",
+            box: 1 
+          }
+        ]
+      },
+      {
+        id: "deck-landmarks",
+        title_es: "Iconos y Lugares Famosos",
+        title_en: "Famous Landmarks & Places",
+        desc_es: "Explora los paisajes y las obras arquitectónicas de este hermoso país.",
+        desc_en: "Explore the landscapes and architecture of this beautiful nation.",
+        emoji: "⛵",
+        cards: [
+          { 
+            id: "l1", 
+            front_es: "¿A qué se asemeja el famoso techo de la Casa de la Ópera de Sídney?", 
+            back_es: "Se asemeja a las velas blancas de los barcos navegando por el puerto.",
+            front_en: "What does the roof of the Sydney Opera House look like?",
+            back_en: "It looks like the billowing white sails of yachts sailing in the harbor.",
+            box: 1 
+          },
+          { 
+            id: "l2", 
+            front_es: "Canberra fue elegida capital como punto medio entre dos grandes ciudades rivales. ¿Cuáles?", 
+            back_es: "Sídney y Melbourne.",
+            front_en: "Canberra was chosen as capital to compromise between two rival cities. Which ones?",
+            back_en: "Sydney and Melbourne.",
+            box: 1 
+          },
+          { 
+            id: "l3", 
+            front_es: "¿Qué maravilla natural del noreste de Australia es visible desde el espacio?", 
+            back_es: "La Gran Barrera de Coral. Es el arrecife de coral más grande del mundo.",
+            front_en: "What natural wonder in northeast Australia is visible from outer space?",
+            back_en: "The Great Barrier Reef. It is the world's largest coral reef system.",
+            box: 1 
+          }
+        ]
+      },
+      {
+        id: "deck-traditions",
+        title_es: "Cultura y Tradición Australiana",
+        title_en: "Australian Culture & Trivia",
+        desc_es: "Pon a prueba tus conocimientos sobre costumbres, comidas y vida diaria.",
+        desc_en: "Test your knowledge about daily life, food, and Australian customs.",
+        emoji: "🍪",
+        cards: [
+          { 
+            id: "t1", 
+            front_es: "¿Qué famosa pasta negra de levadura untan los australianos en sus tostadas?", 
+            back_es: "El Vegemite. Tiene un sabor salado muy fuerte y tradicional.",
+            front_en: "What famous dark yeast spread do Australians spread on their toast?",
+            back_en: "Vegemite. It has a strong, salty flavor that is highly traditional.",
+            box: 1 
+          },
+          { 
+            id: "t2", 
+            front_es: "¿Qué galletas crujientes se asocian con el día en que se recuerda a los soldados?", 
+            back_es: "Las galletas ANZAC.",
+            front_en: "What crunchy biscuits are associated with the day of remembrance for soldiers?",
+            back_en: "The ANZAC biscuits.",
+            box: 1 
+          }
+        ]
+      }
+    ];
+
+    // ESTADO GLOBAL DE LA APP
+    let decks = [...initialDecks];
+    let currentLanguage = 'es'; 
+    let selectedTextSize = 1; 
+    let audioEnabled = true;
+    let highContrast = false;
+    let currentScreen = 'home';
+    
+    // Gamificación activa
+    let activeStars = 12;
+    let activeAwards = 1;
+
+    // Sesiones de estudio
+    let activeDeckId = null;
+    let activeCards = [];
+    let currentCardIndex = 0;
+    let isFlipped = false;
+    let sessionCountReviewed = 0;
+
+    // ANIMACIÓN GIMNASIA CEREBRAL (Respiración Guiada)
+    let breatheInterval = null;
+    function startBreatheGuide() {
+      const bText = document.getElementById('breathText');
+      let status = 1; // 1 = Inhala, 2 = Exhala
+
+      bText.innerText = currentLanguage === 'es' ? "Inhala 💨" : "Breathe in 💨";
+      if (audioEnabled) speakText(bText.innerText);
+
+      breatheInterval = setInterval(() => {
+        if (status === 1) {
+          bText.innerText = currentLanguage === 'es' ? "Exhala 🧘" : "Breathe out 🧘";
+          status = 2;
+        } else {
+          bText.innerText = currentLanguage === 'es' ? "Inhala 💨" : "Breathe in 💨";
+          status = 1;
+        }
+        if (audioEnabled) speakText(bText.innerText);
+      }, 3000); // Sincronizado con la animación CSS
+    }
+
+    function stopBreatheGuide() {
+      if (breatheInterval) {
+        clearInterval(breatheInterval);
+        breatheInterval = null;
+      }
+    }
+
+    // IDIOMAS Y CAMBIOS
+    function setLanguage(lang) {
+      currentLanguage = lang;
+      
+      const btnEs = document.getElementById('langBtn-es');
+      const btnEn = document.getElementById('langBtn-en');
+      
+      if (lang === 'es') {
+        btnEs.className = "px-4 py-2 rounded-xl font-black flex items-center gap-2 bg-indigo-600 text-white shadow-md focus:ring-2 focus:ring-indigo-500";
+        btnEn.className = "px-4 py-2 rounded-xl font-bold flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-2 focus:ring-indigo-500";
+      } else {
+        btnEn.className = "px-4 py-2 rounded-xl font-black flex items-center gap-2 bg-indigo-600 text-white shadow-md focus:ring-2 focus:ring-indigo-500";
+        btnEs.className = "px-4 py-2 rounded-xl font-bold flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-2 focus:ring-indigo-500";
+      }
+
+      const dict = translations[lang];
+      for (const key in dict) {
+        const el = document.getElementById('ui-' + key);
+        if (el) {
+          el.innerText = dict[key];
+        }
+      }
+
+      const audioText = document.getElementById('audioText');
+      if (audioText) {
+        audioText.innerText = audioEnabled ? dict.audioOn : dict.audioOff;
+      }
+
+      renderDecks();
+      updateLeitnerCounts();
+      applyExtraI18n();
+
+      if (currentScreen === 'study') {
+        setupCard();
+      }
+    }
+
+    // NAVEGACIÓN GENERAL
+    function changeScreen(screenId) {
+      document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+
+      stopBreatheGuide();
+
+      if (screenId === 'home') {
+        document.getElementById('welcomeSection').classList.remove('hidden');
+      } else {
+        document.getElementById('welcomeSection').classList.add('hidden');
+      }
+
+      window.speechSynthesis.cancel();
+
+      document.getElementById('screen-' + screenId).classList.remove('hidden');
+      currentScreen = screenId;
+      window.scrollTo(0, 0);
+
+      if (screenId === 'relax') {
+        startBreatheGuide();
+      }
+    }
+
+    // ACCESIBILIDAD TEXTO
+    function setTextSize(size) {
+      selectedTextSize = size;
+      const body = document.getElementById('appBody');
+      body.classList.remove('text-scale-1', 'text-scale-2', 'text-scale-3');
+      body.classList.add('text-scale-' + size);
+
+      document.getElementById('btnSize1').className = `px-3 py-1.5 rounded-lg font-bold border focus:ring-2 focus:ring-indigo-500 ${size === 1 ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'}`;
+      document.getElementById('btnSize2').className = `px-3 py-1.5 rounded-lg font-bold border focus:ring-2 focus:ring-indigo-500 ${size === 2 ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'}`;
+      document.getElementById('btnSize3').className = `px-3 py-1.5 rounded-lg font-bold border focus:ring-2 focus:ring-indigo-500 ${size === 3 ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'}`;
+    }
+
+    // ACCESIBILIDAD VOCAL
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const audioIcon = document.getElementById('audioIcon');
+      const audioText = document.getElementById('audioText');
+      const btn = document.getElementById('btnAudio');
+      const dict = translations[currentLanguage];
+
+      if (audioEnabled) {
+        audioIcon.innerText = "🔊";
+        audioText.innerText = dict.audioOn;
+        btn.classList.add('bg-indigo-50', 'text-indigo-800', 'border-indigo-300');
+        btn.classList.remove('bg-red-50', 'text-red-800', 'border-red-300');
+      } else {
+        audioIcon.innerText = "🔇";
+        audioText.innerText = dict.audioOff;
+        btn.classList.remove('bg-indigo-50', 'text-indigo-800', 'border-indigo-300');
+        btn.classList.add('bg-red-50', 'text-red-800', 'border-red-300');
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    // ACCESIBILIDAD CONTRASTE
+    function toggleContrast() {
+      highContrast = !highContrast;
+      const body = document.getElementById('appBody');
+      const header = document.querySelector('header');
+      const btnContrast = document.getElementById('btnContrast');
+
+      if (highContrast) {
+        body.classList.remove('bg-gradient-to-br', 'from-indigo-50', 'via-blue-50', 'to-emerald-50', 'text-slate-800');
+        body.classList.add('bg-slate-950', 'text-yellow-300');
+        header.classList.remove('bg-white/80');
+        header.classList.add('bg-slate-900', 'border-yellow-400');
+        btnContrast.classList.add('bg-yellow-400', 'text-slate-950');
+      } else {
+        body.classList.remove('bg-slate-950', 'text-yellow-300');
+        body.classList.add('bg-gradient-to-br', 'from-indigo-50', 'via-blue-50', 'to-emerald-50', 'text-slate-800');
+        header.classList.add('bg-white/80');
+        header.classList.remove('bg-slate-900', 'border-yellow-400');
+        btnContrast.classList.remove('bg-yellow-400', 'text-slate-950');
+      }
+    }
+
+    // TEXT-TO-SPEECH SENIOR
+    function speakText(text) {
+      if (!audioEnabled) return;
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (currentLanguage === 'es') {
+        utterance.lang = 'es-VE'; 
+      } else {
+        utterance.lang = 'en-AU'; 
+      }
+      utterance.rate = 0.8; 
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function speakCurrentCardText(event, readBack = false) {
+      if (event) event.stopPropagation(); 
+      const currentCard = activeCards[currentCardIndex];
+      if (!currentCard) return;
+
+      let textToSpeak = "";
+      if (currentLanguage === 'es') {
+        textToSpeak = readBack ? currentCard.back_es : currentCard.front_es;
+      } else {
+        textToSpeak = readBack ? currentCard.back_en : currentCard.front_en;
+      }
+
+      speakText(textToSpeak);
+    }
+
+    // RENDERIZAR REJILLA DE MAZOS
+    function renderDecks() {
+      const grid = document.getElementById('decksGrid');
+      grid.innerHTML = '';
+
+      decks.forEach(deck => {
+        const totalCards = deck.cards.length;
+        const title = currentLanguage === 'es' ? deck.title_es : deck.title_en;
+        const desc = currentLanguage === 'es' ? deck.desc_es : deck.desc_en;
+        
+        const deckCard = document.createElement('div');
+        deckCard.className = "bg-white rounded-3xl border-2 border-indigo-50 shadow-md p-6 hover:shadow-xl hover:border-indigo-200 transition-all-custom flex flex-col justify-between space-y-4";
+        
+        deckCard.innerHTML = `
+          <div class="space-y-2">
+            <div class="flex items-center gap-3">
+              <span class="text-4xl p-3 bg-indigo-50 rounded-2xl" role="img" aria-label="${esc(title)}">${esc(deck.emoji)}</span>
+              <div>
+                <h3 class="font-extrabold text-slate-900">${esc(title)}</h3>
+                <span class="text-xs bg-indigo-100 text-indigo-800 font-extrabold px-3 py-1 rounded-full border border-indigo-200">${totalCards} ${currentLanguage === 'es' ? 'Tarjetas' : 'Cards'}</span>
+              </div>
+            </div>
+            <p class="text-slate-600 text-sm leading-relaxed">${esc(desc)}</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+            <button onclick="playSound('click'); startStudy('${deck.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-1 focus:ring-4 focus:ring-indigo-300 shadow-md transition-all-custom">
+              ▶️ ${currentLanguage === 'es' ? 'Estudiar' : 'Study'}
+            </button>
+            <button onclick="playSound('click'); manageCards('${deck.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-1 focus:ring-4 focus:ring-indigo-300 transition-all-custom">
+              ✏️ ${currentLanguage === 'es' ? 'Modificar' : 'Edit'}
+            </button>
+          </div>
+        `;
+        grid.appendChild(deckCard);
+      });
+    }
+
+    // CONTAR CAJAS LEITNER
+    function updateLeitnerCounts() {
+      let caja1 = 0;
+      let caja2 = 0;
+      let caja3 = 0;
+
+      decks.forEach(deck => {
+        deck.cards.forEach(card => {
+          if (!card.box || card.box === 1) caja1++;
+          else if (card.box === 2) caja2++;
+          else if (card.box === 3) caja3++;
+        });
+      });
+
+      document.getElementById('caja1Count').innerText = caja1;
+      document.getElementById('caja2Count').innerText = caja2;
+      document.getElementById('caja3Count').innerText = caja3;
+      persist();
+    }
+
+    // ESTUDIO ACTIVO
+    function startStudy(deckId) {
+      const deck = decks.find(d => d.id === deckId);
+      if (!deck || deck.cards.length === 0) {
+        showCustomAlert(
+          currentLanguage === 'es' ? "Atención" : "Attention", 
+          translations[currentLanguage].alertNoCards
+        );
+        return;
+      }
+
+      activeDeckId = deckId;
+      activeCards = [...deck.cards].sort((a, b) => (a.box || 1) - (b.box || 1));
+      currentCardIndex = 0;
+      isFlipped = false;
+      sessionCountReviewed = 0;
+
+      const title = currentLanguage === 'es' ? deck.title_es : deck.title_en;
+      document.getElementById('studyDeckTitle').innerText = `${deck.emoji} ${title}`;
+
+      setupCard();
+      changeScreen('study');
+
+      setTimeout(() => {
+        speakCurrentCardText(null);
+      }, 600);
+    }
+
+    function setupCard() {
+      const card = activeCards[currentCardIndex];
+      if (!card) return;
+
+      isFlipped = false;
+      document.getElementById('cardInner').classList.remove('rotate-y-180');
+
+      if (currentLanguage === 'es') {
+        document.getElementById('cardFrontText').innerText = card.front_es;
+        document.getElementById('cardBackText').innerText = card.back_es;
+      } else {
+        document.getElementById('cardFrontText').innerText = card.front_en;
+        document.getElementById('cardBackText').innerText = card.back_en;
+      }
+
+      const total = activeCards.length;
+      const progressPercent = ((currentCardIndex) / total) * 100;
+      document.getElementById('cardProgressBar').style.width = `${progressPercent}%`;
+      
+      const lblTargeta = currentLanguage === 'es' ? 'Tarjeta' : 'Card';
+      const lblDe = currentLanguage === 'es' ? 'de' : 'of';
+      document.getElementById('cardProgressText').innerText = `${lblTargeta} ${currentCardIndex + 1} ${lblDe} ${total}`;
+    }
+
+    function flipCard() {
+      isFlipped = !isFlipped;
+      playSound('flip');
+      const cardInner = document.getElementById('cardInner');
+      
+      if (isFlipped) {
+        cardInner.classList.add('rotate-y-180');
+        setTimeout(() => {
+          speakCurrentCardText(null, true);
+        }, 300);
+      } else {
+        cardInner.classList.remove('rotate-y-180');
+      }
+    }
+
+    function evaluateCard(isSuccess) {
+      const deck = decks.find(d => d.id === activeDeckId);
+      const cardInSession = activeCards[currentCardIndex];
+      const realCard = deck.cards.find(c => c.id === cardInSession.id);
+
+      if (realCard) {
+        if (!realCard.box) realCard.box = 1;
+
+        if (isSuccess) {
+          playSound('success');
+          activeStars += 2; 
+          document.getElementById('starsCount').innerText = activeStars;
+          if (realCard.box < 3) realCard.box++;
+        } else {
+          playSound('fail');
+          realCard.box = 1;
+        }
+      }
+
+      sessionCountReviewed++;
+      updateLeitnerCounts();
+
+      currentCardIndex++;
+      if (currentCardIndex < activeCards.length) {
+        setupCard();
+        setTimeout(() => {
+          speakCurrentCardText(null);
+        }, 500);
+      } else {
+        showCongratsScreen();
+      }
+    }
+
+    function showCongratsScreen() {
+      activeAwards += 1; 
+      document.getElementById('awardCount').innerText = activeAwards;
+      persist();
+      document.getElementById('congratsCount').innerText = sessionCountReviewed;
+      
+      changeScreen('congrats');
+
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+      
+      const congratsSpeech = currentLanguage === 'es' 
+        ? "¡Excelente! Has terminado tu práctica de hoy y has ganado una nueva medalla." 
+        : "Excellent job! You've finished your practice today and won a shiny new medal.";
+      speakText(congratsSpeech);
+    }
+
+    // MAZOS PERSONALIZADOS
+    function selectEmoji(emoji) {
+      document.getElementById('selectedEmoji').value = emoji;
+      
+      const buttons = document.querySelectorAll('.emoji-opt');
+      buttons.forEach(btn => {
+        if (btn.innerText === emoji) {
+          btn.classList.add('border-indigo-600', 'bg-indigo-50');
+        } else {
+          btn.classList.remove('border-indigo-600', 'bg-indigo-50');
+        }
+      });
+    }
+
+    // MODIFICAR TARJETAS
+    let currentManagingDeckId = null;
+
+    function manageCards(deckId) {
+      currentManagingDeckId = deckId;
+      const deck = decks.find(d => d.id === deckId);
+      if (!deck) return;
+
+      const title = currentLanguage === 'es' ? deck.title_es : deck.title_en;
+      document.getElementById('manageDeckTitle').innerText = `${deck.emoji} ${title}`;
+      renderDeckCardsList();
+      changeScreen('manageCards');
+    }
+
+    function renderDeckCardsList() {
+      const listContainer = document.getElementById('deckCardsList');
+      listContainer.innerHTML = '';
+
+      const deck = decks.find(d => d.id === currentManagingDeckId);
+      if (!deck) return;
+
+      if (deck.cards.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+            <span class="text-3xl block">📭</span>
+            <p class="font-bold text-slate-500 mt-2">${currentLanguage === 'es' ? 'Aún no hay tarjetas en este mazo.' : 'No cards in this deck yet.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      deck.cards.forEach((card, index) => {
+        let boxColor = "bg-red-100 text-red-800";
+        if (card.box === 2) boxColor = "bg-amber-100 text-amber-800";
+        else if (card.box === 3) boxColor = "bg-emerald-100 text-emerald-800";
+
+        const cardItem = document.createElement('div');
+        cardItem.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3";
+        cardItem.innerHTML = `
+          <div class="space-y-1">
+            <p class="text-xs text-slate-400 font-bold">${currentLanguage === 'es' ? 'Tarjeta' : 'Card'} #${index + 1} <span class="ml-2 text-xs font-black uppercase px-2 py-0.5 rounded-full ${boxColor}">Box ${card.box || 1}</span></p>
+            <div class="text-sm">
+              <p class="font-bold text-slate-800"><span class="text-indigo-700">ES:</span> ${esc(card.front_es)} <span class="text-slate-500 font-normal">→ ${esc(card.back_es)}</span></p>
+              <p class="font-bold text-slate-700 mt-1"><span class="text-purple-600">EN:</span> ${esc(card.front_en)} <span class="text-slate-500 font-normal">→ ${esc(card.back_en)}</span></p>
+            </div>
+          </div>
+          <button onclick="playSound('click'); deleteCard('${card.id}')" class="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-red-200 shrink-0 transition-all-custom">
+            🗑️ ${currentLanguage === 'es' ? 'Eliminar' : 'Delete'}
+          </button>
+        `;
+        listContainer.appendChild(cardItem);
+      });
+    }
+
+    function deleteCard(cardId) {
+      const deck = decks.find(d => d.id === currentManagingDeckId);
+      if (!deck) return;
+
+      deck.cards = deck.cards.filter(c => c.id !== cardId);
+      renderDeckCardsList();
+      updateLeitnerCounts();
+      renderDecks();
+    }
+
+    // MODAL
+    function showCustomAlert(title, message) {
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerHTML = `<p class="font-bold text-slate-700">${message}</p>`;
+      
+      const overlay = document.getElementById('modalOverlay');
+      overlay.classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('modalContainer').classList.remove('scale-95');
+      }, 50);
+
+      speakText(title + ". " + message);
+    }
+
+    function openModal(type) {
+      if (type === 'leitnerInfo') {
+        const dict = translations[currentLanguage];
+        document.getElementById('modalTitle').innerText = dict.leitnerTitle;
+        
+        const modalContent = document.getElementById('leitnerInfoModal').cloneNode(true);
+        modalContent.classList.remove('hidden');
+        
+        const esContent = modalContent.querySelector('.lang-content-es');
+        const enContent = modalContent.querySelector('.lang-content-en');
+        if (currentLanguage === 'es') {
+          enContent.remove();
+        } else {
+          esContent.remove();
+        }
+
+        document.getElementById('modalBody').innerHTML = modalContent.innerHTML;
+      }
+      
+      const overlay = document.getElementById('modalOverlay');
+      overlay.classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('modalContainer').classList.remove('scale-95');
+      }, 50);
+    }
+
+    function closeModal() {
+      document.getElementById('modalContainer').classList.add('scale-95');
+      setTimeout(() => {
+        document.getElementById('modalOverlay').classList.add('hidden');
+      }, 150);
+      window.speechSynthesis.cancel();
+    }
+  </script>
+  <script src="/config.js"></script>
+  <script>
+    // =====================================================================
+    //  NUEVAS FUNCIONES: Google, traducción con IA, mazos con IA, archivos
+    // =====================================================================
+
+    // ---------- CONFIGURACIÓN (cambia estos valores) ----------
+    // Firebase: consola.firebase.google.com > Tu proyecto > Configuración > Tus apps (Web)
+    const FIREBASE_CONFIG = window.NEUROSYNC_FIREBASE_CONFIG || {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_PROYECTO.firebaseapp.com",
+      projectId: "TU_PROYECTO",
+      appId: "TU_APP_ID"
+    };
+    // Vacío = mismo origen: el servidor Express entrega index.html y la API.
+    // Si alojas el frontend por separado, define window.NEUROSYNC_API_BASE en config.js.
+    const AI_API_BASE = (window.NEUROSYNC_API_BASE || "").replace(/\/$/, "");
+    const MAX_AI_CARDS = 20;
+    const MAX_UPLOAD_MB = 10;
+
+    // ---------- Utilidades ----------
+    function tx(es, en) { return currentLanguage === 'es' ? es : en; }
+
+    function esc(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function setBusy(on, message) {
+      document.getElementById('busyText').innerText = message || '';
+      document.getElementById('busyOverlay').classList.toggle('hidden', !on);
+    }
+
+    // ---------- Textos nuevos (ES / EN) ----------
+    Object.assign(translations.es, {
+      loginSubtitle: "Inicia sesión para guardar tus mazos y tu progreso.",
+      loginGoogle: "Continuar con Google",
+      loginGuest: "Entrar sin cuenta",
+      btnLogout: "Salir",
+      btnAiDeck: "Crear con IA",
+      aiTitle: "Crear Mazo con Inteligencia Artificial",
+      aiCancel: "Cancelar",
+      aiCountLabel: "¿Cuántas tarjetas quieres?",
+      aiMaxNote: "Máximo 20 tarjetas por mazo, en español e inglés.",
+      aiTabTopic: "Escribir un tema",
+      aiTabFile: "Subir un archivo",
+      aiPromptLabel: "¿Sobre qué quieres aprender?",
+      aiBtnTopic: "Crear mazo con IA",
+      aiFileLabel: "Elige un documento (PDF, Word .docx o texto)",
+      aiHintLabel: "Indicaciones para la IA (opcional):",
+      aiBtnFile: "Crear mazo desde el archivo",
+      lblDeckLang: "Escribo en:",
+      lblDeckName: "Nombre del mazo:",
+      lblAutoTranslate: "🤖 La IA traducirá el nombre al otro idioma por ti.",
+      lblWriteIn: "Escribo en:",
+      lblQuestion: "Pregunta:",
+      lblAnswer: "Respuesta:",
+      lblAutoTranslateCard: "🤖 La IA traducirá la tarjeta al otro idioma por ti.",
+      btnAddCardBtn: "Guardar y traducir con IA",
+      alertFieldReq: "Por favor, escribe el nombre del mazo.",
+      alertCardFieldReq: "Por favor, escribe la pregunta y la respuesta."
+    });
+    Object.assign(translations.en, {
+      loginSubtitle: "Sign in to save your decks and your progress.",
+      loginGoogle: "Continue with Google",
+      loginGuest: "Continue without an account",
+      btnLogout: "Sign out",
+      btnAiDeck: "Create with AI",
+      aiTitle: "Create a Deck with Artificial Intelligence",
+      aiCancel: "Cancel",
+      aiCountLabel: "How many cards do you want?",
+      aiMaxNote: "Up to 20 cards per deck, in Spanish and English.",
+      aiTabTopic: "Write a topic",
+      aiTabFile: "Upload a file",
+      aiPromptLabel: "What would you like to learn about?",
+      aiBtnTopic: "Create deck with AI",
+      aiFileLabel: "Choose a document (PDF, Word .docx or text)",
+      aiHintLabel: "Instructions for the AI (optional):",
+      aiBtnFile: "Create deck from the file",
+      lblDeckLang: "I write in:",
+      lblDeckName: "Deck name:",
+      lblAutoTranslate: "🤖 The AI will translate the name into the other language for you.",
+      lblWriteIn: "I write in:",
+      lblQuestion: "Question:",
+      lblAnswer: "Answer:",
+      lblAutoTranslateCard: "🤖 The AI will translate the card into the other language for you.",
+      btnAddCardBtn: "Save and translate with AI",
+      alertFieldReq: "Please write the deck name.",
+      alertCardFieldReq: "Please write the question and the answer."
+    });
+
+    const extraPlaceholders = {
+      es: {
+        newDeckTitle: "Ej. Historia Australiana",
+        newCardFront: "Ej. ¿Qué animal representa a Australia?",
+        newCardBack: "Ej. El canguro.",
+        aiPrompt: "Ej. Los planetas del sistema solar",
+        aiHint: "Ej. Enfócate en los capítulos 1 y 2"
+      },
+      en: {
+        newDeckTitle: "e.g. Australian History",
+        newCardFront: "e.g. Which animal represents Australia?",
+        newCardBack: "e.g. The kangaroo.",
+        aiPrompt: "e.g. The planets of the solar system",
+        aiHint: "e.g. Focus on chapters 1 and 2"
+      }
+    };
+
+    function applyExtraI18n() {
+      const ph = extraPlaceholders[currentLanguage];
+      for (const id in ph) {
+        const el = document.getElementById(id);
+        if (el) el.placeholder = ph[id];
+      }
+      setSrcLang(currentLanguage);
+      refreshUserChip();
+    }
+
+    // ---------- Idioma en el que escribe el usuario ----------
+    let srcLang = 'es';
+
+    function setSrcLang(lang) {
+      srcLang = lang;
+      document.querySelectorAll('.src-lang-btn').forEach(btn => {
+        const active = btn.dataset.src === lang;
+        btn.className = 'src-lang-btn px-4 py-2 rounded-xl font-bold transition-all-custom ' +
+          (active ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-50');
+      });
+    }
+
+    // ---------- Guardado local por usuario ----------
+    let currentUser = null;
+
+    function storageKey() {
+      return currentUser ? 'memorable:v1:' + currentUser.uid : null;
+    }
+
+    function persist() {
+      const key = storageKey();
+      if (!key) return;
+      try {
+        localStorage.setItem(key, JSON.stringify({ decks, activeStars, activeAwards }));
+      } catch (e) {
+        console.warn('No se pudo guardar el progreso:', e);
+      }
+    }
+
+    function loadState() {
+      decks = JSON.parse(JSON.stringify(initialDecks));
+      activeStars = 12;
+      activeAwards = 1;
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey()) || 'null');
+        if (saved && Array.isArray(saved.decks)) {
+          decks = saved.decks;
+          activeStars = typeof saved.activeStars === 'number' ? saved.activeStars : 12;
+          activeAwards = typeof saved.activeAwards === 'number' ? saved.activeAwards : 1;
+        }
+      } catch (e) {
+        console.warn('Datos guardados ilegibles, se usan los de ejemplo.', e);
+      }
+      document.getElementById('starsCount').innerText = activeStars;
+      document.getElementById('awardCount').innerText = activeAwards;
+    }
+
+    // ---------- Inicio de sesión con Google ----------
+    let firebaseReady = false;
+
+    function showLoginError(message) {
+      const box = document.getElementById('loginError');
+      box.innerText = message;
+      box.classList.remove('hidden');
+    }
+
+    function showLogin() {
+      document.getElementById('loginError').classList.add('hidden');
+      document.getElementById('loginOverlay').classList.remove('hidden');
+    }
+
+    function refreshUserChip() {
+      const chip = document.getElementById('userChip');
+      if (!currentUser) { chip.classList.add('hidden'); return; }
+      chip.classList.remove('hidden');
+      document.getElementById('userName').innerText =
+        currentUser.guest ? tx('Invitado', 'Guest') : (currentUser.name || '');
+      const avatar = document.getElementById('userAvatar');
+      if (currentUser.photo) {
+        avatar.src = currentUser.photo;
+        avatar.classList.remove('hidden');
+      } else {
+        avatar.classList.add('hidden');
+      }
+    }
+
+    function onLogin(user) {
+      currentUser = user;
+      loadState();
+      document.getElementById('loginOverlay').classList.add('hidden');
+      refreshUserChip();
+      renderDecks();
+      updateLeitnerCounts();
+      changeScreen('home');
+    }
+
+    function initAuth() {
+      const configured = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('TU_') !== 0;
+      if (configured && typeof firebase !== 'undefined') {
+        try {
+          firebase.initializeApp(FIREBASE_CONFIG);
+          firebaseReady = true;
+          firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+              onLogin({ uid: user.uid, name: user.displayName || user.email, photo: user.photoURL, guest: false });
+            } else if (!(currentUser && currentUser.guest)) {
+              currentUser = null;
+              refreshUserChip();
+              showLogin();
+            }
+          });
+          return;
+        } catch (e) {
+          console.error('Firebase no se pudo iniciar:', e);
+        }
+      }
+      showLogin();
+    }
+
+    async function signInWithGoogle() {
+      if (!firebaseReady) {
+        showLoginError(tx(
+          'Falta configurar Firebase. Pega tus datos en FIREBASE_CONFIG dentro del código.',
+          'Firebase is not set up yet. Paste your keys into FIREBASE_CONFIG in the code.'
+        ));
+        return;
+      }
+      try {
+        await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+      } catch (e) {
+        if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+        showLoginError(tx('No se pudo iniciar sesión con Google. Inténtalo de nuevo.',
+                          'Google sign-in failed. Please try again.'));
+        console.error(e);
+      }
+    }
+
+    function continueAsGuest() {
+      onLogin({ uid: 'guest', name: '', photo: '', guest: true });
+    }
+
+    async function signOutUser() {
+      try {
+        if (firebaseReady && firebase.auth().currentUser) await firebase.auth().signOut();
+      } catch (e) { console.error(e); }
+      currentUser = null;
+      refreshUserChip();
+      showLogin();
+    }
+
+    // ---------- Comunicación con el servidor de IA ----------
+    async function aiRequest(path, payload) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (firebaseReady && firebase.auth().currentUser) {
+        headers.Authorization = 'Bearer ' + await firebase.auth().currentUser.getIdToken();
+      }
+      let res;
+      try {
+        res = await fetch(AI_API_BASE + path, { method: 'POST', headers, body: JSON.stringify(payload) });
+      } catch (e) {
+        throw new Error(tx('No se pudo conectar con el servidor de IA. Revisa que esté encendido.',
+                           'Could not reach the AI server. Check that it is running.'));
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('Error ' + res.status));
+      return data;
+    }
+
+    async function aiTranslate(texts, from, to) {
+      const data = await aiRequest('/api/translate', { texts, from, to });
+      if (!Array.isArray(data.texts) || data.texts.length !== texts.length) {
+        throw new Error(tx('La traducción llegó incompleta.', 'The translation came back incomplete.'));
+      }
+      return data.texts.map(t => String(t).trim());
+    }
+
+    // ---------- Crear mazo (un solo nombre, la IA traduce) ----------
+    async function saveNewDeck() {
+      const title = document.getElementById('newDeckTitle').value.trim();
+      const emoji = document.getElementById('selectedEmoji').value;
+
+      if (!title) {
+        showCustomAlert(tx('Campo requerido', 'Field Required'), translations[currentLanguage].alertFieldReq);
+        return;
+      }
+
+      const from = srcLang;
+      const to = from === 'es' ? 'en' : 'es';
+      let translated = title;
+      let warning = '';
+
+      setBusy(true, tx('Traduciendo el nombre con IA...', 'Translating the name with AI...'));
+      try {
+        [translated] = await aiTranslate([title], from, to);
+      } catch (e) {
+        translated = title;
+        warning = tx('No pude traducir el nombre (' + e.message + '). El mazo se guardó con el mismo nombre en ambos idiomas; puedes cambiarlo después.',
+                     'I could not translate the name (' + e.message + '). The deck was saved with the same name in both languages; you can change it later.');
+      } finally {
+        setBusy(false);
+      }
+
+      const newDeck = {
+        id: 'deck-' + Date.now(),
+        title_es: from === 'es' ? title : translated,
+        title_en: from === 'en' ? title : translated,
+        desc_es: 'Mazo personalizado por el usuario.',
+        desc_en: 'User created custom deck.',
+        emoji: emoji,
+        cards: []
+      };
+
+      decks.push(newDeck);
+      renderDecks();
+      document.getElementById('newDeckTitle').value = '';
+      manageCards(newDeck.id);
+
+      if (warning) showCustomAlert(tx('Atención', 'Attention'), esc(warning));
+    }
+
+    // ---------- Agregar tarjeta (una pregunta + una respuesta, la IA traduce) ----------
+    async function addNewCard() {
+      const front = document.getElementById('newCardFront').value.trim();
+      const back = document.getElementById('newCardBack').value.trim();
+
+      if (!front || !back) {
+        showCustomAlert(tx('Atención', 'Attention'), translations[currentLanguage].alertCardFieldReq);
+        return;
+      }
+
+      const deck = decks.find(d => d.id === currentManagingDeckId);
+      if (!deck) return;
+
+      const from = srcLang;
+      const to = from === 'es' ? 'en' : 'es';
+      let translatedFront = front;
+      let translatedBack = back;
+      let warning = '';
+
+      setBusy(true, tx('Traduciendo la tarjeta con IA...', 'Translating the card with AI...'));
+      try {
+        [translatedFront, translatedBack] = await aiTranslate([front, back], from, to);
+      } catch (e) {
+        warning = tx('No pude traducir la tarjeta (' + e.message + '). Se guardó con el mismo texto en ambos idiomas; puedes eliminarla y crearla otra vez.',
+                     'I could not translate the card (' + e.message + '). It was saved with the same text in both languages; you can delete it and try again.');
+      } finally {
+        setBusy(false);
+      }
+
+      deck.cards.push({
+        id: 'card-' + Date.now(),
+        front_es: from === 'es' ? front : translatedFront,
+        back_es: from === 'es' ? back : translatedBack,
+        front_en: from === 'en' ? front : translatedFront,
+        back_en: from === 'en' ? back : translatedBack,
+        box: 1
+      });
+
+      document.getElementById('newCardFront').value = '';
+      document.getElementById('newCardBack').value = '';
+
+      renderDeckCardsList();
+      updateLeitnerCounts();
+      renderDecks();
+
+      if (warning) showCustomAlert(tx('Atención', 'Attention'), esc(warning));
+    }
+
+    // ---------- Mazos con IA ----------
+    function openAiScreen() {
+      changeScreen('aiDeck');
+      setAiTab('topic');
+    }
+
+    function setAiTab(tab) {
+      ['topic', 'file'].forEach(name => {
+        document.getElementById('aiPanel-' + name).classList.toggle('hidden', name !== tab);
+        document.getElementById('aiTab-' + name).className = 'flex-1 px-4 py-3 rounded-xl font-extrabold transition-all-custom ' +
+          (name === tab ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-slate-700 hover:bg-slate-50');
+      });
+    }
+
+    function getAiCount() {
+      const input = document.getElementById('aiCount');
+      const n = parseInt(input.value, 10);
+      const count = Math.min(MAX_AI_CARDS, Math.max(1, isNaN(n) ? 10 : n));
+      input.value = count;
+      return count;
+    }
+
+    function normalizeAiDeck(raw, limit) {
+      const clean = v => (typeof v === 'string' ? v.trim() : '');
+      if (!raw || !Array.isArray(raw.cards)) {
+        throw new Error(tx('La IA no devolvió un mazo válido.', 'The AI did not return a valid deck.'));
+      }
+      const stamp = Date.now();
+      const cards = raw.cards
+        .map(c => ({
+          front_es: clean(c.front_es), back_es: clean(c.back_es),
+          front_en: clean(c.front_en), back_en: clean(c.back_en)
+        }))
+        .filter(c => c.front_es && c.back_es && c.front_en && c.back_en)
+        .slice(0, Math.min(limit, MAX_AI_CARDS))
+        .map((c, i) => Object.assign({ id: 'card-' + stamp + '-' + i, box: 1 }, c));
+
+      if (cards.length === 0) {
+        throw new Error(tx('La IA no pudo crear tarjetas con ese contenido. Prueba con otro tema o archivo.',
+                           'The AI could not create cards from that content. Try another topic or file.'));
+      }
+
+      const emoji = clean(raw.emoji);
+      return {
+        id: 'deck-' + stamp,
+        title_es: clean(raw.title_es) || clean(raw.title_en) || 'Mazo con IA',
+        title_en: clean(raw.title_en) || clean(raw.title_es) || 'AI Deck',
+        desc_es: 'Mazo creado con inteligencia artificial.',
+        desc_en: 'Deck created with artificial intelligence.',
+        emoji: (emoji && emoji.length <= 8) ? emoji : '🌟',
+        cards
+      };
+    }
+
+    function addGeneratedDeck(rawDeck, limit) {
+      const deck = normalizeAiDeck(rawDeck, limit);
+      decks.push(deck);
+      renderDecks();
+      updateLeitnerCounts();
+      manageCards(deck.id);
+      playSound('success');
+      showCustomAlert(
+        tx('¡Mazo listo!', 'Deck ready!'),
+        tx('Creé ' + deck.cards.length + ' tarjetas. Revísalas y edítalas si quieres.',
+           'I created ' + deck.cards.length + ' cards. Review them and edit if you like.')
+      );
+    }
+
+    function showAiError(e) {
+      showCustomAlert(tx('No se pudo crear el mazo', 'Could not create the deck'), esc(e.message));
+    }
+
+    async function generateDeckFromPrompt() {
+      const prompt = document.getElementById('aiPrompt').value.trim();
+      if (prompt.length < 3) {
+        showCustomAlert(tx('Atención', 'Attention'),
+          tx('Escribe de qué quieres aprender.', 'Write what you would like to learn about.'));
+        return;
+      }
+      const count = getAiCount();
+
+      setBusy(true, tx('La IA está creando tu mazo...', 'The AI is creating your deck...'));
+      try {
+        const data = await aiRequest('/api/generate-deck', { prompt, count });
+        setBusy(false);
+        document.getElementById('aiPrompt').value = '';
+        addGeneratedDeck(data.deck, count);
+      } catch (e) {
+        setBusy(false);
+        showAiError(e);
+      }
+    }
+
+    // ---------- Mazos desde archivos (PDF, Word, texto) ----------
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]);
+        reader.onerror = () => reject(new Error(tx('No pude leer el archivo.', 'Could not read the file.')));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function generateDeckFromFile() {
+      const fileInput = document.getElementById('aiFile');
+      const file = fileInput.files[0];
+      const hint = document.getElementById('aiHint').value.trim();
+
+      if (!file) {
+        showCustomAlert(tx('Atención', 'Attention'), tx('Primero elige un archivo.', 'Choose a file first.'));
+        return;
+      }
+      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        showCustomAlert(tx('Archivo muy grande', 'File too large'),
+          tx('El archivo no puede pasar de ' + MAX_UPLOAD_MB + ' MB.', 'The file cannot be larger than ' + MAX_UPLOAD_MB + ' MB.'));
+        return;
+      }
+
+      const count = getAiCount();
+      const name = file.name.toLowerCase();
+
+      setBusy(true, tx('Leyendo el archivo y creando tarjetas...', 'Reading the file and creating cards...'));
+      try {
+        let payload;
+        if (name.endsWith('.pdf')) {
+          payload = { kind: 'pdf', data: await fileToBase64(file) };
+        } else if (name.endsWith('.docx')) {
+          if (typeof mammoth === 'undefined') throw new Error(tx('No se pudo cargar el lector de Word.', 'The Word reader could not be loaded.'));
+          const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+          payload = { kind: 'text', text: result.value };
+        } else if (name.endsWith('.txt') || name.endsWith('.md')) {
+          payload = { kind: 'text', text: await file.text() };
+        } else {
+          throw new Error(tx('Formato no compatible. Usa PDF, Word (.docx) o texto (.txt).',
+                             'Unsupported format. Use PDF, Word (.docx) or text (.txt).'));
+        }
+
+        if (payload.kind === 'text' && !payload.text.trim()) {
+          throw new Error(tx('El documento no tiene texto que pueda leer.', 'The document has no readable text.'));
+        }
+
+        const data = await aiRequest('/api/deck-from-file', Object.assign({ hint, count }, payload));
+        setBusy(false);
+        fileInput.value = '';
+        document.getElementById('aiHint').value = '';
+        addGeneratedDeck(data.deck, count);
+      } catch (e) {
+        setBusy(false);
+        showAiError(e);
+      }
+    }
+
+    // ---------- Arranque ----------
+    setLanguage(currentLanguage);
+    setTextSize(1);
+    selectEmoji('🦘');
+    setAiTab('topic');
+    initAuth();
+
+  </script>
+</body>
+</html>
+

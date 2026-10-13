@@ -1,0 +1,21 @@
+{
+  "name": "neurosync-memory-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NeuroSync: aplicaci\u00f3n biling\u00fce de flashcards y repetici\u00f3n espaciada para adultos mayores.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^13.5.0"
+  }
+}
